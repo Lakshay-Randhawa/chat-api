@@ -7,6 +7,7 @@ export class AuthService {
   }
 
   async signin() {
+    console.log('signin');
     return 'This action signs in a user';
   }
 }
