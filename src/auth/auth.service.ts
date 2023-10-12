@@ -1,10 +1,17 @@
+import { JwtService } from '@nestjs/jwt';
 import { Body, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as argon from 'argon2';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private configService: ConfigService,
+    private jwtService: JwtService,
+    private prisma: PrismaService,
+  ) {}
+
   async signup(body: any) {
     const hash = await argon.hash(body.password);
 
@@ -30,18 +37,28 @@ export class AuthService {
       where: { email: email },
     });
 
-    console.log({ user });
     if (!user) {
       throw new ForbiddenException('Invalid credentials');
     }
 
     const isPasswordValid = await argon.verify(user.hash, password);
 
-    console.log({ isPasswordValid });
     if (!isPasswordValid) {
       throw new ForbiddenException('Invalid credentials');
     }
 
-    return user;
+    const payLoad = { sub: user.id, email: user.email };
+
+    return this.signToken(payLoad);
+  }
+
+  async signToken(payload: Object) {
+    const token = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get('JWT_SECRET'),
+      expiresIn: '1d',
+    });
+
+    console.log(token);
+    return { access_token: token };
   }
 }
